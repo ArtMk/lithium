@@ -49,6 +49,29 @@ def rectangular_mask(image_shape, center, h, w):
     return mask
 
 
+def circular_mask(image_shape, center, radius):
+    """
+    Function:
+        This function creates a circular mask to select the region of interest in inSitu measurements.
+        While 'image_shape' is automatically inherited from the original density images,
+        'center', 'radius' have to be determined manually.
+
+    Arguments:
+        image_shape -- array-like, shape of the full image
+        center      -- array-like, center of the circular mask
+        radius      -- scalar, radius of the rectangular mask
+
+    Returns:
+        array-like, mask selecting the region of interest in inSitu measurements
+    """
+
+    Y, X = np.ogrid[:image_shape[0], :image_shape[1]]
+    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+
+    mask = dist_from_center >= radius
+    return mask
+
+
 def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, progress_disable):
     """
     Function:
