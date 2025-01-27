@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 """
 python package for the analysis of absorption images
 developed by members of the Lithium Project
@@ -20,8 +21,7 @@ from scipy.ndimage import gaussian_filter
 from PIL import Image
 from alive_progress import alive_bar
 
-import EvaluationHelpers
-
+from lithium.li import EvaluationHelpers
 
 
 # ~~~ FUNCTIONS FOR IMAGE PROCESSING ~~~ #
@@ -34,13 +34,13 @@ def rectangular_mask(image_shape, center, h, w):
         'center', 'h' and 'w' have to be determined manually.
 
     Arguments:
-        image_shape -- array-like, shape of the full image
-        center      -- array-like, center of the rectangular mask
-        h           -- scalar, height of the rectangular mask
-        w           -- scalar, width of the rectangular mask
+        image_shape -- {array-like} shape of the full image
+        center      -- {array-like} center of the rectangular mask
+        h           -- {scalar} height of the rectangular mask
+        w           -- {scalar} width of the rectangular mask
 
     Returns:
-        array-like, mask selecting the region of interest in T4 measurements
+        {array-like} mask selecting the region of interest in T4 measurements
     """
 
     Y, X = np.ogrid[:image_shape[0], :image_shape[1]]
@@ -57,12 +57,12 @@ def circular_mask(image_shape, center, radius):
         'center', 'radius' have to be determined manually.
 
     Arguments:
-        image_shape -- array-like, shape of the full image
-        center      -- array-like, center of the circular mask
-        radius      -- scalar, radius of the rectangular mask
+        image_shape -- {array-like} shape of the full image
+        center      -- {array-like} center of the circular mask
+        radius      -- {scalar} radius of the rectangular mask
 
     Returns:
-        array-like, mask selecting the region of interest in inSitu measurements
+        {array-like} mask selecting the region of interest in inSitu measurements
     """
 
     Y, X = np.ogrid[:image_shape[0], :image_shape[1]]
@@ -79,17 +79,17 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
         It also applies a mask to the densities, selecting the region of interest in T4 measurements.
 
     Arguments:
-        images            -- dictionary, collection of  all image paths and specific values of loop variables
-        keys              -- list of strings, keys of all loop variables
-        center            -- array-like, center of the rectangular mask for region of interest
-        h                 -- scalar, height of the rectangular mask for region of interest
-        w                 -- scalar, width of the rectangular mask for region of interest
-        Csat_rate         -- scalar, saturation rate value for imaging
-        illumination_time -- scalar, imaging illumination time in seconds
-        progress          -- boolean, progress bar
+        images            -- {dictionary} collection of  all image paths and specific values of loop variables
+        keys              -- {list of strings} keys of all loop variables
+        center            -- {array-like} center of the rectangular mask for region of interest
+        h                 -- {scalar} height of the rectangular mask for region of interest
+        w                 -- {scalar} width of the rectangular mask for region of interest
+        Csat_rate         -- {scalar} saturation rate value for imaging
+        illumination_time -- {scalar} imaging illumination time [s]
+        progress          -- {boolean} progress bar
 
     Returns:
-        pandas dataframe, densities for all combinations of loop variables
+        {pandas dataframe} densities for all combinations of loop variables
     """
 
     # ~~~ CONSTANTS ~~~ #
@@ -149,11 +149,11 @@ def filter(images, threshold):
         The threshold has to be determined manually.
 
     Arguments:
-        images    -- pandas dataframe, densities for all combinations of loop variables
-        threshold -- scalar, threshold for filtering missed shots
+        images    -- {pandas dataframe} densities for all combinations of loop variables
+        threshold -- {scalar} threshold for filtering missed shots
 
     Returns:
-        pandas dataframe, densities for all combinations of loop variables filtered for missed shots
+        {pandas dataframe} densities for all combinations of loop variables filtered for missed shots
     """
 
     for i, im in images.iterrows():
@@ -174,12 +174,12 @@ def group(images, keys, key_kill):
         dataframe by the loop variables meant to be kept and averaging over the densities in the respective groups.
 
     Arguments:
-        images   -- pandas dataframe, densities for all combinations of loop variables filtered for missed shots
-        keys     --
-        key_kill -- string, loop variable to be averaged over and "killed" from the dataframe
+        images   -- {pandas dataframe} densities for all combinations of loop variables filtered for missed shots
+        keys     -- {array-like} keys of all loop variables
+        key_kill -- {string} loop variable to be averaged over and "killed" from the dataframe
 
     Returns:
-        pandas dataframe, densities for all combinations of loop variables averaged over key_kill
+        {pandas dataframe} densities for all combinations of loop variables averaged over key_kill
     """
 
     key_group = keys.copy()
@@ -197,14 +197,14 @@ def gauss(x, a, b, c, d):
         Gaussian
 
     Arguments:
-        x -- array-like, x coordinate
-        a -- scalar, amplitude parameter
-        b -- scalar, mean parameter
-        c -- scalar, standard deviation parameter
-        d -- vertical offset parameter
+        x -- {array-like} x coordinate
+        a -- {scalar} amplitude parameter
+        b -- {scalar} mean parameter
+        c -- {scalar} standard deviation parameter
+        d -- {scalar} vertical offset parameter
 
     Returns:
-         array-like, Gaussion evaluated at x
+         {array-like} Gaussion evaluated at x
     """
 
     return a * np.exp(-(x - b)**2 / c) + d
@@ -216,13 +216,13 @@ def parab(x, e, b, f):
         Parabola where negative points are masked.
 
     Arguments:
-        x -- array-like, x coordinate
-        e -- scalar, amplitude parameter
-        b -- scalar, mean parameter
-        f -- scalar, vertical offset parameter
+        x -- {array-like} x coordinate
+        e -- {scalar} amplitude parameter
+        b -- {scalar} mean parameter
+        f -- {scalar} vertical offset parameter
 
     Returns:
-        array-like, parabola evaluated at x
+        {array-like} parabola evaluated at x
     """
 
     parab = -e * (x - b)**2 + f
@@ -240,13 +240,13 @@ def gauss_parab(x, a, b, c, d, e, f):
         Gaussian plus parabola
 
     Arguments:
-        x -- array-like, x coordinate
-        a -- scalar, amplitude parameter Gaussian
-        b -- scalar, mean parameter
-        c -- scalar, vertical offset parameter Gaussian
-        d -- scalar, vertical offset parameter Gaussian
-        e -- scalar, amplitude parameter parabola
-        f -- scalar, vertical offset parameter parabola
+        x -- {array-like} x coordinate
+        a -- {scalar} amplitude parameter Gaussian
+        b -- {scalar} mean parameter
+        c -- {scalar} vertical offset parameter Gaussian
+        d -- {scalar} vertical offset parameter Gaussian
+        e -- {scalar} amplitude parameter parabola
+        f -- {scalar} vertical offset parameter parabola
 
     Returns:
         array-like, Gaussian + parabola evaluated at x
@@ -262,11 +262,11 @@ def running_average(x, w):
         This is done by convolving nearest neighbors in a window of size 'w'.
 
     Arguments:
-        x -- array-like
-        w -- scalar, convolution window size
+        x -- {array-like}
+        w -- {scalar} convolution window size
 
     Returns:
-        array-like, running average of input array
+        {array-like} running average of input array
     """
 
     return np.convolve(x, np.ones(w), 'same') / w
@@ -280,10 +280,10 @@ def T4_fit(images):
         The peaks are determined using both a gauss + parabola fit as well as a double running average.
 
     Arguments:
-        images -- pandas dataframe, averaged densities for all combinations of loop variables
+        images -- {pandas dataframe} averaged densities for all combinations of loop variables
 
     Returns:
-        pandas dataframe, additionally containing fit parameters and T4 peaks
+        {pandas dataframe} additionally containing fit parameters and T4 peaks
     """
 
     images_fit = images.copy()
@@ -322,10 +322,10 @@ def response(images):
         from both fitting and running average methods.
 
     Arguments:
-        images -- pandas dataframe, densities for all combinations of loop variables plus T4 peaks
+        images -- {pandas dataframe} densities for all combinations of loop variables plus T4 peaks
 
     Returns:
-        pandas dataframe, additionally containing response from T4 peaks
+        {pandas dataframe} additionally containing response from T4 peaks
     """
 
     images_res = images.copy()
@@ -350,17 +350,17 @@ def visualize(images, index, columns, values, title, vmin = 0, vmax = 1, cmap = 
         This function visualizes the response as a function of all loop variables in a heatmap.
 
     Arguments:
-        images  -- pandas dataframe, containing respsonse from T4 peaks
-        index   -- string, loop variable on y-axis
-        columns -- string, loop variable on x-axis
-        values  -- string, loop variable as heatmap values
-        title   -- string, title of the heatmap
-        vmin    -- scalar, lower bound of colormap
-        vmax    -- scalar, upper bound of colormap
-        cmap    -- string, colormap name
+        images  -- {pandas dataframe, containing respsonse from T4 peaks
+        index   -- {string} loop variable on y-axis
+        columns -- {string} loop variable on x-axis
+        values  -- {string} loop variable as heatmap values
+        title   -- {string} title of the heatmap
+        vmin    -- {scalar} lower bound of colormap
+        vmax    -- {scalar} upper bound of colormap
+        cmap    -- {string} colormap name
 
     Returns:
-        matplotlib axis, heatmap of response
+        {matplotlib axis} heatmap of response
     """
 
     # turn dataframe into heatmap shape
