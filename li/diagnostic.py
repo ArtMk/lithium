@@ -24,6 +24,10 @@ g_e = -const.value("electron g factor") # g-factor for electrons
 mu_B = const.value("Bohr magneton")     # Bohr magneton
 h = const.h                             # Planck constant
 
+# scattering length
+A = 0.915                        # scaling constant for a_2D and a_3D
+a_0 = const.value('Bohr radius') # Bohr radius
+
 
 def intensity(power, waist):
     """
@@ -73,7 +77,7 @@ def U_dip(wavelength, power, waist, from_trap_freq, trap_freq = 0):
         return 3 * const.pi * const.c**2 / (2 * f_res**3) * Gamma / D2_detuning * intensity(power, waist)
 
 
-def trap_freq(wavelength, power, waist, from_trap_freq = False):
+def trap_frequency(wavelength, power, waist, from_trap_freq = False):
     """
     Function:
         This function calculates the trap frequency of a dipole trap.
@@ -123,7 +127,7 @@ def breit_rabi(B, state): # B in Gaus, return in MHz
     else:
         root = 1 + m_F / abs(m_F) * a
 
-    return (-vHFS / (2 * (2 * I + 1)) + g_I * m_F * mu_B * B * 1e-4 / h + vHFS * (F - 1) * root)
+    return -vHFS / (2 * (2 * I + 1)) + g_I * m_F * mu_B * B * 1e-4 / h + vHFS * (F - 1) * root
 
 
 def get_F(state):
@@ -161,3 +165,90 @@ def get_m_F(state):
 
     if state > 2:
         return state-9/2
+
+
+### ~~~~~~~~~~~~~~~~ SCATTERING LENGTH ~~~~~~~~~~~~~~~~ ###
+### ~~~~~~~~~~~~~~~~ SCATTERING LENGTH ~~~~~~~~~~~~~~~~ ###
+### ~~~~~~~~~~~~~~~~ SCATTERING LENGTH ~~~~~~~~~~~~~~~~ ###
+
+
+def scattering_length_2D(a_3D, freq_z, m = m_Li):
+    """
+    Function:
+        This function calculates the 2D scattering length for a given 3D scattering length and vertical confinement.
+
+    Arguments:
+        a_3D -- {scalar} 3D scattering length [m]
+
+    Returns:
+        {scalar} 2D scattering length [m]
+    """
+
+    l_z = harmonic_osc_length(freq_z, m)
+
+    return l_z * np.sqrt(const.pi / A) * np.exp(- np.sqrt(const.pi / 2) * l_z / a_3D)
+
+
+def harmonic_osc_length(freq_z, m = m_Li):
+    """
+    Function:
+        This function calculates the harmonic oscillator length of the accordion.
+
+    Arguments:
+        freq_z -- {scalar} trap frqeuency [Hz]
+        m      -- {scalar} particle mass [kg]
+
+    Returns:
+        {scalar} harmonic oscillator length [m]
+    """
+
+    return np.sqrt(const.hbar / (m * 2 * const.pi * freq_z))
+
+
+def k_F(n):
+    """
+    Function:
+        This function calculates the Fermi momentum for a given 2D cloud density.
+
+    Arguments:
+        n -- {scalar} 2D cloud density [m^-2]
+
+    Returns:
+        {scalar} Fermi momentum [m^-1]
+    """
+
+    return np.sqrt(4 * const.pi * n)
+
+
+def E_F(n):
+    """
+    Function:
+        This function calculates the Fermi energy for a given 2D cloud density.
+
+    Arguments:
+        n -- {scalar} 2D cloud density [m^-2]
+
+    Returns:
+        {scalar} Fermi energy [J]
+    """
+
+    return const.hbar**2 * k_F(n)**2 / (2 * m_Li)
+
+
+def T_F(n):
+    """
+    Function:
+        This function calculates the Fermi temperature for a given 2D cloud density.
+
+    Arguments:
+        n -- {scalar} 2D cloud density [m^-2]
+
+    Returns:
+        {scalar} Fermi temperature [K]
+    """
+
+    return E_F(n) / const.k
+
+"""
+Der Ablauf des Lithiumexperiments in der AG Moritz beinhaltet das Bedienen eines auf einem Luftkissen sich bewegenden Schlittens, welcher, optische Elemente tragend, fuer die Manipulation von kalten Atomen genutzt wird. Der Kompressor, der die noetige Druckluft liefert, ist ausgefallen
+"""

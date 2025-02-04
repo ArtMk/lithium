@@ -18,10 +18,20 @@ import re
 
 from scipy.optimize import curve_fit
 from scipy.ndimage import gaussian_filter
+from scipy import constants as const
 from PIL import Image
 from alive_progress import alive_bar
 
 from lithium.li import EvaluationHelpers
+
+
+
+# constants
+
+omega_T4 = 2 * const.pi * 27.3 # angular frequency of T4 harmonic [Hz]
+m_Li = 9.9883414e-27           # mass of lithium [kg]
+px_to_x = 1.09739368998628e-6  # effective pixel size in [m]
+
 
 
 # ~~~ FUNCTIONS FOR IMAGE PROCESSING ~~~ #
@@ -207,7 +217,7 @@ def gauss(x, a, b, c, d):
          {array-like} Gaussion evaluated at x
     """
 
-    return a * np.exp(-(x - b)**2 / c) + d
+    return a * np.exp(-(x - b)**2 / c**2) + d
 
 
 def parab(x, e, b, f):
@@ -219,17 +229,20 @@ def parab(x, e, b, f):
         x -- {array-like} x coordinate
         e -- {scalar} amplitude parameter
         b -- {scalar} mean parameter
-        f -- {scalar} vertical offset parameter
+        f -- {scalar} width parameter
 
     Returns:
         {array-like} parabola evaluated at x
     """
 
-    parab = -e * (x - b)**2 + f
+    # parab = -e * (x - b)**2 + f
+    parab = 1 - ((x - b)/f)**2
 
     # mask points where parabola is negative
     mask = (parab < 0)
     parab[mask] = 0
+
+    parab = e * parab**(3/2)
 
     return parab
 
@@ -243,10 +256,10 @@ def gauss_parab(x, a, b, c, d, e, f):
         x -- {array-like} x coordinate
         a -- {scalar} amplitude parameter Gaussian
         b -- {scalar} mean parameter
-        c -- {scalar} vertical offset parameter Gaussian
+        c -- {scalar} standard deviation parameter Gaussian
         d -- {scalar} vertical offset parameter Gaussian
         e -- {scalar} amplitude parameter parabola
-        f -- {scalar} vertical offset parameter parabola
+        f -- {scalar} width parameter parabola
 
     Returns:
         array-like, Gaussian + parabola evaluated at x
@@ -292,6 +305,7 @@ def T4_fit(images):
     T4_params = []
     T4_peak = []
     T4_run_peak = []
+    temperature = []
 
     for i, im in images_fit.iterrows():
 
@@ -300,17 +314,22 @@ def T4_fit(images):
         pos = np.arange(0, len(T4))
 
         # peak from gauss + parabola fit
-        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 0, 0, 5], bounds=([0, 40, 500, 0, 0, 0], [1, 60, 1000, 0.1, 2, 10]))
+        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 26, 0, 1, 5], bounds=([0, 40, 22, 0, 0, 0], [1, 60, 32, 0.1, 3, 10]))
 
         T4_params.append(popt)
-        T4_peak.append(popt[0] + popt[-3] + popt[-1])
+        T4_peak.append(popt[0] + popt[-3] + popt[-1]) ### NOT WORKING IU(NF(W*NHXF(IUHW#IJNSAX(*FYY@(@UHC_O#UYDHBOSMJN(CAilpphfc*&y#
 
         # peak from double running average
         T4_run_peak.append(np.max(running_average(running_average(T4, 5), 5)))
 
+        # calculate temperature
+        T = popt[2]**2 * px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9
+        temperature.append(T)
+
     images_fit["T4_params"] = T4_params
     images_fit["T4_peak"] = T4_peak
     images_fit["T4_run_peak"] = T4_run_peak
+    images_fit["temperature"] = temperature
 
     return images_fit
 
