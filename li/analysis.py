@@ -209,7 +209,7 @@ def gauss(x, a, b, c):
         a -- {scalar} amplitude parameter
         b -- {scalar} mean parameter
         c -- {scalar} standard deviation parameter
-        d -- {scalar} vertical offset parameter
+        d -- {scalar} vertical offset parameter (not used)
 
     Returns:
          {array-like} Gaussion evaluated at x
