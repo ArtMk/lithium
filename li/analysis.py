@@ -25,13 +25,11 @@ from alive_progress import alive_bar
 from lithium.li import EvaluationHelpers
 
 
-
 # constants
 
 omega_T4 = 2 * const.pi * 27.3 # angular frequency of T4 harmonic [Hz]
 m_Li = 9.9883414e-27           # mass of lithium [kg]
 px_to_x = 1.09739368998628e-6  # effective pixel size in [m]
-
 
 
 # ~~~ FUNCTIONS FOR IMAGE PROCESSING ~~~ #
