@@ -201,7 +201,7 @@ def group(images, keys, key_kill):
     return images_grp
 
 
-def gauss(x, a, b, c, d):
+def gauss(x, a, b, c):
     """
     Function:
         Gaussian
@@ -217,7 +217,7 @@ def gauss(x, a, b, c, d):
          {array-like} Gaussion evaluated at x
     """
 
-    return a * np.exp(-(x - b)**2 / c**2) + d
+    return a * np.exp(-(x - b)**2 / c) # + d
 
 
 def parab(x, e, b, f):
@@ -247,7 +247,7 @@ def parab(x, e, b, f):
     return parab
 
 
-def gauss_parab(x, a, b, c, d, e, f):
+def gauss_parab(x, a, b, c, e, f):
     """
     Function:
         Gaussian plus parabola
@@ -265,7 +265,7 @@ def gauss_parab(x, a, b, c, d, e, f):
         array-like, Gaussian + parabola evaluated at x
     """
 
-    return gauss(x, a, b, c, d) + parab(x, e, b, f)
+    return gauss(x, a, b, c) + parab(x, e, b, f)
 
 
 def running_average(x, w):
@@ -314,17 +314,18 @@ def T4_fit(images):
         pos = np.arange(0, len(T4))
 
         # peak from gauss + parabola fit
-        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 26, 0, 1, 5], bounds=([0, 40, 22, 0, 0, 0], [1, 60, 32, 0.1, 3, 10]))
+        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 1, 5], bounds=([0, 40, 0, 0, 0], [1, 60, 1000, 3, 10]))
 
         T4_params.append(popt)
-        T4_peak.append(popt[0] + popt[-3] + popt[-1]) ### NOT WORKING IU(NF(W*NHXF(IUHW#IJNSAX(*FYY@(@UHC_O#UYDHBOSMJN(CAilpphfc*&y#
+        T4_peak.append(popt[0] + popt[3])
 
         # peak from double running average
         T4_run_peak.append(np.max(running_average(running_average(T4, 5), 5)))
 
         # calculate temperature
-        T = popt[2]**2 * px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9
-        temperature.append(T)
+        T = popt[2] * px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9
+        T_err = px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9 * np.sqrt(np.diag(pcov)[2])
+        temperature.append([T, T_err])
 
     images_fit["T4_params"] = T4_params
     images_fit["T4_peak"] = T4_peak
