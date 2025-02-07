@@ -2,7 +2,7 @@
 
 """
 python package for the analysis of absorption images
-developed by members of the Lithium Project
+developed by members of the lithium project
 """
 
 import numpy as np
