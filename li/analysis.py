@@ -31,6 +31,14 @@ omega_T4 = 2 * const.pi * 27.3 # angular frequency of T4 harmonic [Hz]
 m_Li = 9.9883414e-27           # mass of lithium [kg]
 px_to_x = 1.09739368998628e-6  # effective pixel size in [m]
 
+wl_laser = 671e-9  # resonant wavelength for imaging
+sigma_factor = 1
+sigma_zero = 3 * (wl_laser ** 2) / (2 * np.pi)
+sigma_eff = sigma_factor * sigma_zero
+
+A = px_to_x**2  # pixel size in m**2
+gain = 1
+
 
 # ~~~ FUNCTIONS FOR IMAGE PROCESSING ~~~ #
 
@@ -102,14 +110,7 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
 
     # ~~~ CONSTANTS ~~~ #
 
-    wl_laser = 671e-9 # resonant wavelength for imaging
-    sigma_factor = 1
-    sigma_zero = 3 * (wl_laser**2)/(2*np.pi)
-    sigma_eff = sigma_factor * sigma_zero
-
     counts_sat = Csat_rate * illumination_time * 1e6
-    A = 1.08e-12 # pixel size in m
-
 
     # ~~~ DENSITY CALCULATION ~~~ #
 
@@ -120,8 +121,10 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
     for key in keys:
         images_prc[key] = []
 
-    # create a new field for the calculated density
+    # create a new fields for the calculated density and individual atoms and bright images
     images_prc["density"] = []
+    images_prc["atoms"] = []
+    images_prc["bright"] = []
 
     # fill the dictionary
     with alive_bar(len(images), force_tty = True, spinner = "twirl", disable = progress_disable) as bar:
@@ -131,11 +134,17 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
             density = EvaluationHelpers.makeDensityImage(image_set["atoms"], image_set["reference"], counts_sat, sigma_eff,
                                                          image_set["atom_background"], image_set["ref_background"]) * A
 
+            # atoms and bright calculation (for fluctuation)
+            atoms = EvaluationHelpers.loadImageRemoveDark(image_set["atoms"], image_set["atom_background"])
+            bright = EvaluationHelpers.loadImageRemoveDark(image_set["reference"], image_set["ref_background"])
+
             # ROI mask for T4 measurement
             T4_mask = rectangular_mask(np.shape(density), center, h, w)
 
-            # append density as masked array
+            # append density, atoms and bright as masked array
             images_prc["density"].append(ma.array(density, mask = T4_mask))
+            images_prc["atoms"].append(ma.array(atoms, mask = T4_mask))
+            images_prc["bright"].append(ma.array(bright, mask = T4_mask))
 
             for key in keys:
                 images_prc[key].append(image_set[key])
@@ -190,11 +199,35 @@ def group(images, keys, key_kill):
         {pandas dataframe} densities for all combinations of loop variables averaged over key_kill
     """
 
+    counts_sat = 56
+
     key_group = keys.copy()
     key_group.remove(key_kill)
 
-    # group by group keys, calculate mean of densities, reshape dataframe to grouped dataframe
-    images_grp = images.groupby(key_group).mean(numeric_only = False).reset_index().drop(columns = [key_kill])
+    if len(keys) == 1:
+
+        images_grp = {}
+
+        # averages
+        images_grp["density"] = [images["density"].mean(numeric_only = False)]
+        images_grp["atoms"] = [images["atoms"].mean(numeric_only=False)]
+        images_grp["bright"] = [images["bright"].mean(numeric_only=False)]
+
+        # variances for fluctuation calculation
+        # images_grp["atoms_var"] = [images["atoms"].std(numeric_only = True) ** 2]
+        # images_grp["bright_var"] = [images["bright"].std(numeric_only = True) ** 2]
+
+        images_grp["atoms_var"] = [np.std(images["atoms"].to_numpy())**2]
+        images_grp["bright_var"] = [np.std(images["bright"].to_numpy())**2]
+        images_grp["fringe_var"] = [images_grp["bright_var"][0] - gain * images_grp["bright"][0]]
+
+        images_grp["number_var"] = [(A / sigma_eff * (1/images_grp["atoms"][0] + 1/counts_sat))**2 * (images_grp["atoms_var"][0] - gain * images_grp["atoms"][0] - images_grp["fringe_var"][0])]
+
+        images_grp = pd.DataFrame(images_grp)
+
+    else:
+        # group by group keys, calculate mean of densities, reshape dataframe to grouped dataframe
+        images_grp = images.groupby(key_group).mean(numeric_only = False).reset_index().drop(columns = [key_kill])
 
     return images_grp
 
