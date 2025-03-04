@@ -146,6 +146,10 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
             images_prc["atoms"].append(ma.array(atoms, mask = T4_mask))
             images_prc["bright"].append(ma.array(bright, mask = T4_mask))
 
+            # images_prc["density"].append(np.array(density))
+            # images_prc["atoms"].append(np.array(atoms))
+            # images_prc["bright"].append(np.array(bright))
+
             for key in keys:
                 images_prc[key].append(image_set[key])
 
@@ -182,7 +186,7 @@ def filter(images, threshold):
     return images
 
 
-def group(images, keys, key_kill):
+def group(images, keys, key_kill, Csat_rate, illumination_time):
     """
     Function:
         This function averages the densities for all combinations of loop variables with respect to the variable
@@ -191,15 +195,17 @@ def group(images, keys, key_kill):
         dataframe by the loop variables meant to be kept and averaging over the densities in the respective groups.
 
     Arguments:
-        images   -- {pandas dataframe} densities for all combinations of loop variables filtered for missed shots
-        keys     -- {array-like} keys of all loop variables
-        key_kill -- {string} loop variable to be averaged over and "killed" from the dataframe
+        images            -- {pandas dataframe} densities for all combinations of loop variables filtered for missed shots
+        keys              -- {array-like} keys of all loop variables
+        key_kill          -- {string} loop variable to be averaged over and "killed" from the dataframe
+        Csat_rate         -- {scalar} saturation rate value for imaging
+        illumination_time -- {scalar} imaging illumination time [s]
 
     Returns:
         {pandas dataframe} densities for all combinations of loop variables averaged over key_kill
     """
 
-    counts_sat = 56
+    counts_sat = Csat_rate * illumination_time * 1e6
 
     key_group = keys.copy()
     key_group.remove(key_kill)
@@ -221,13 +227,22 @@ def group(images, keys, key_kill):
         images_grp["bright_var"] = [np.std(images["bright"].to_numpy())**2]
         images_grp["fringe_var"] = [images_grp["bright_var"][0] - gain * images_grp["bright"][0]]
 
-        images_grp["number_var"] = [(A / sigma_eff * (1/images_grp["atoms"][0] + 1/counts_sat))**2 * (images_grp["atoms_var"][0] - gain * images_grp["atoms"][0] - images_grp["fringe_var"][0])]
-
         images_grp = pd.DataFrame(images_grp)
 
     else:
+
         # group by group keys, calculate mean of densities, reshape dataframe to grouped dataframe
         images_grp = images.groupby(key_group).mean(numeric_only = False).reset_index().drop(columns = [key_kill])
+
+        for kk in list(images_grp):
+            if kk not in key_group:
+
+                images_grp[kk + "_var"] = images_grp[kk].apply(np.var)
+
+    images_grp["fringe_var"] = images_grp["bright_var"].iloc[0] - gain * images_grp["bright"].iloc[0]
+
+    images_grp["number_var"] = ((A / sigma_eff * (1 / images_grp["atoms"][0] + 1 / counts_sat)) ** 2 *
+                                (images_grp["atoms_var"][0] - gain * images_grp["atoms"][0] - images_grp["fringe_var"][0]))
 
     return images_grp
 
