@@ -182,8 +182,17 @@ def filter(images, threshold):
         # compare atom number in ROI to threshold
         if np.sum(im["density"].compressed()) < threshold:
             images = images.drop([i])
+            print(f"dropped {i}")
 
     return images
+
+
+def variance_func(images):
+
+    stacked_images = ma.stack(images)
+    variance = ma.var(stacked_images, axis = 0)
+
+    return variance
 
 
 def group(images, keys, key_kill, Csat_rate, illumination_time):
@@ -212,6 +221,8 @@ def group(images, keys, key_kill, Csat_rate, illumination_time):
 
     if len(keys) == 1:
 
+        print("SINGLE MODE")
+
         images_grp = {}
 
         # averages
@@ -219,30 +230,30 @@ def group(images, keys, key_kill, Csat_rate, illumination_time):
         images_grp["atoms"] = [images["atoms"].mean(numeric_only=False)]
         images_grp["bright"] = [images["bright"].mean(numeric_only=False)]
 
-        # variances for fluctuation calculation
-        # images_grp["atoms_var"] = [images["atoms"].std(numeric_only = True) ** 2]
-        # images_grp["bright_var"] = [images["bright"].std(numeric_only = True) ** 2]
-
         images_grp["atoms_var"] = [np.std(images["atoms"].to_numpy())**2]
         images_grp["bright_var"] = [np.std(images["bright"].to_numpy())**2]
-        images_grp["fringe_var"] = [images_grp["bright_var"][0] - gain * images_grp["bright"][0]]
 
         images_grp = pd.DataFrame(images_grp)
 
     else:
 
+        print("MULTI MODE")
+
         # group by group keys, calculate mean of densities, reshape dataframe to grouped dataframe
-        images_grp = images.groupby(key_group).mean(numeric_only = False).reset_index().drop(columns = [key_kill])
+        images_grp = images.groupby(key_group).mean(numeric_only = False).reset_index().drop(columns = key_kill)
 
-        for kk in list(images_grp):
-            if kk not in key_group:
+        for key in list(images_grp):
+            if key not in key_group:
 
-                images_grp[kk + "_var"] = images_grp[kk].apply(np.var)
+                variance = images.groupby(key_group)[key].apply(variance_func).reset_index().drop(columns = key_group, axis = 1)
 
-    images_grp["fringe_var"] = images_grp["bright_var"].iloc[0] - gain * images_grp["bright"].iloc[0]
+                variance.rename(columns = {key: key + "_var"}, inplace=True)
+                images_grp = pd.concat([images_grp, variance], axis = 1).reindex(images_grp.index)
 
-    images_grp["number_var"] = ((A / sigma_eff * (1 / images_grp["atoms"][0] + 1 / counts_sat)) ** 2 *
-                                (images_grp["atoms_var"][0] - gain * images_grp["atoms"][0] - images_grp["fringe_var"][0]))
+    images_grp["fringe_var"] = images_grp["bright_var"] - gain * images_grp["bright"]
+
+    images_grp["number_var"] = ((A / sigma_eff * (1 / images_grp["atoms"] + 1 / counts_sat)) ** 2 *
+                                (images_grp["atoms_var"] - gain * images_grp["atoms"] - images_grp["fringe_var"]))
 
     return images_grp
 
@@ -381,14 +392,16 @@ def T4_fit(images):
     return images_fit
 
 
-def response(images):
+def response(images, index, index_0):
     """
     Function:
         This function calculates the response from the T4 peaks extracted
         from both fitting and running average methods.
 
     Arguments:
-        images -- {pandas dataframe} densities for all combinations of loop variables plus T4 peaks
+        images  -- {pandas dataframe} densities for all combinations of loop variables plus T4 peaks
+        index   -- {string} loop variable on y-axis
+        index_0 -- {float} value with respect to which the response is calculated
 
     Returns:
         {pandas dataframe} additionally containing response from T4 peaks
@@ -397,11 +410,11 @@ def response(images):
     images_res = images.copy()
 
     a = np.array(images_res["T4_peak"])
-    b = np.array(images_res[images_res["Acc_heat_freq"] == 0.0]["T4_peak"])
+    b = np.array(images_res[images_res[index] == index_0]["T4_peak"])
     a0  = np.tile(b, len(images_res) // len(b))
 
     a_run = np.array(images_res["T4_run_peak"])
-    b_run = np.array(images_res[images_res["Acc_heat_freq"] == 0.0]["T4_run_peak"])
+    b_run = np.array(images_res[images_res[index] == index_0]["T4_run_peak"])
     a0_run  = np.tile(b_run, len(images_res) // len(b_run))
 
     images_res["response"] = a0 / a - np.ones(len(a))
@@ -419,7 +432,7 @@ def visualize(images, index, columns, values, title, vmin = 0, vmax = 1, cmap = 
         images  -- {pandas dataframe, containing respsonse from T4 peaks
         index   -- {string} loop variable on y-axis
         columns -- {string} loop variable on x-axis
-        values  -- {string} loop variable as heatmap values
+        values  -- {string} heatmap values (usually response)
         title   -- {string} title of the heatmap
         vmin    -- {scalar} lower bound of colormap
         vmax    -- {scalar} upper bound of colormap
