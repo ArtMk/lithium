@@ -5,6 +5,7 @@ python package for the analysis of absorption images
 developed by members of the Lithium Project
 """
 
+import seaborn
 import matplotlib.pyplot as plt
 from li.diagnostic import breit_rabi
 
@@ -48,3 +49,35 @@ def breit_rabi_visualize(B, states):
     plt.legend(loc='center right', fontsize = 15)
 
     plt.show()
+
+
+def spectrum(images, index, columns, values, title, vmin = 0, vmax = 1, cmap = "viridis"):
+    """
+    Function:
+        This function visualizes the response as a function of all loop variables in a heatmap.
+
+    Arguments:
+        images  -- {pandas dataframe, containing respsonse from T4 peaks
+        index   -- {string} loop variable on y-axis
+        columns -- {string} loop variable on x-axis
+        values  -- {string} heatmap values (usually response)
+        title   -- {string} title of the heatmap
+        vmin    -- {scalar} lower bound of colormap
+        vmax    -- {scalar} upper bound of colormap
+        cmap    -- {string} colormap name
+
+    Returns:
+        {matplotlib axis} heatmap of response
+    """
+
+    # turn dataframe into heatmap shape
+    heat = images.pivot(index = index, columns = columns, values = values)
+
+    ax = plt.axes()
+
+    # plot heatmap
+    seaborn.heatmap(heat, ax = ax, vmin = vmin, vmax = vmax, cmap = cmap).invert_yaxis()
+
+    ax.set_title(f"{title}", pad = 13)
+
+    return

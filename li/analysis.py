@@ -95,7 +95,7 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
         It also applies a mask to the densities, selecting the region of interest in T4 measurements.
 
     Arguments:
-        images            -- {dictionary} collection of  all image paths and specific values of loop variables
+        images            -- {list of dictionaries} collection of  all image paths and specific values of loop variables
         keys              -- {list of strings} keys of all loop variables
         center            -- {array-like} center of the rectangular mask for region of interest
         h                 -- {scalar} height of the rectangular mask for region of interest
@@ -125,6 +125,7 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
     images_prc["density"] = []
     images_prc["atoms"] = []
     images_prc["bright"] = []
+    images_prc["T4_run_peak"] = []
 
     # fill the dictionary
     with alive_bar(len(images), force_tty = True, spinner = "twirl", disable = progress_disable) as bar:
@@ -146,9 +147,9 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
             images_prc["atoms"].append(ma.array(atoms, mask = T4_mask))
             images_prc["bright"].append(ma.array(bright, mask = T4_mask))
 
-            # images_prc["density"].append(np.array(density))
-            # images_prc["atoms"].append(np.array(atoms))
-            # images_prc["bright"].append(np.array(bright))
+            # peak from running average
+            T4_run = np.mean(ma.array(density, mask = T4_mask), axis = 1).compressed()
+            images_prc["T4_run_peak"].append(np.max(running_average(T4_run, 7)))
 
             for key in keys:
                 images_prc[key].append(image_set[key])
@@ -182,7 +183,7 @@ def filter(images, threshold):
         # compare atom number in ROI to threshold
         if np.sum(im["density"].compressed()) < threshold:
             images = images.drop([i])
-            print(f"dropped {i}")
+            # print(f"dropped {i}")
 
     return images
 
@@ -361,7 +362,7 @@ def T4_fit(images):
     # add new columns
     T4_params = []
     T4_peak = []
-    T4_run_peak = []
+    # T4_run_peak = []
     temperature = []
 
     for i, im in images_fit.iterrows():
@@ -377,7 +378,7 @@ def T4_fit(images):
         T4_peak.append(popt[0] + popt[3])
 
         # peak from double running average
-        T4_run_peak.append(np.max(running_average(running_average(T4, 5), 5)))
+        # T4_run_peak.append(np.max(running_average(T4, 5)))
 
         # calculate temperature
         T = popt[2] * px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9
@@ -386,7 +387,7 @@ def T4_fit(images):
 
     images_fit["T4_params"] = T4_params
     images_fit["T4_peak"] = T4_peak
-    images_fit["T4_run_peak"] = T4_run_peak
+    # images_fit["T4_run_peak"] = T4_run_peak
     images_fit["temperature"] = temperature
 
     return images_fit
@@ -413,46 +414,14 @@ def response(images, index, index_0):
     b = np.array(images_res[images_res[index] == index_0]["T4_peak"])
     a0  = np.tile(b, len(images_res) // len(b))
 
-    a_run = np.array(images_res["T4_run_peak"])
-    b_run = np.array(images_res[images_res[index] == index_0]["T4_run_peak"])
-    a0_run  = np.tile(b_run, len(images_res) // len(b_run))
+    # a_run = np.array(images_res["T4_run_peak"])
+    # b_run = np.array(images_res[images_res[index] == index_0]["T4_run_peak"])
+    # a0_run  = np.tile(b_run, len(images_res) // len(b_run))
 
     images_res["response"] = a0 / a - np.ones(len(a))
-    images_res["response_run"] = a0_run / a_run - np.ones(len(a_run))
+    # images_res["response_run"] = a0_run / a_run - np.ones(len(a_run))
 
     return images_res
-
-
-def visualize(images, index, columns, values, title, vmin = 0, vmax = 1, cmap = "viridis"):
-    """
-    Function:
-        This function visualizes the response as a function of all loop variables in a heatmap.
-
-    Arguments:
-        images  -- {pandas dataframe, containing respsonse from T4 peaks
-        index   -- {string} loop variable on y-axis
-        columns -- {string} loop variable on x-axis
-        values  -- {string} heatmap values (usually response)
-        title   -- {string} title of the heatmap
-        vmin    -- {scalar} lower bound of colormap
-        vmax    -- {scalar} upper bound of colormap
-        cmap    -- {string} colormap name
-
-    Returns:
-        {matplotlib axis} heatmap of response
-    """
-
-    # turn dataframe into heatmap shape
-    heat = images.pivot(index = index, columns = columns, values = values)
-
-    ax = plt.axes()
-
-    # plot heatmap
-    seaborn.heatmap(heat, ax = ax, vmin = vmin, vmax = vmax, cmap = cmap).invert_yaxis()
-
-    ax.set_title(f"{title}", pad = 13)
-
-    return
 
 
 
