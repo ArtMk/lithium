@@ -5,6 +5,7 @@ python package for the analysis of absorption images
 developed by members of the Lithium Project
 """
 
+import os
 import numpy as np
 import scipy.constants as const
 
@@ -186,7 +187,7 @@ def scattering_length_2D(a_3D, freq_z, m = m_Li):
 
     l_z = harmonic_osc_length(freq_z, m)
 
-    return l_z * np.sqrt(const.pi / A) * np.exp(- np.sqrt(const.pi / 2) * l_z / a_3D)
+    return l_z * np.sqrt(const.pi / A) * np.exp(- np.sqrt(const.pi / 2) * l_z / (a_3D * a_0))
 
 
 def harmonic_osc_length(freq_z, m = m_Li):
@@ -249,6 +250,31 @@ def T_F(n):
 
     return E_F(n) / const.k
 
-"""
-Der Ablauf des Lithiumexperiments in der AG Moritz beinhaltet das Bedienen eines auf einem Luftkissen sich bewegenden Schlittens, welcher, optische Elemente tragend, fuer die Manipulation von kalten Atomen genutzt wird. Der Kompressor, der die noetige Druckluft liefert, ist ausgefallen
-"""
+
+def B_to_a2D(B_field, freq_z, m = m_Li, species = "1_2"):
+
+    FB = np.loadtxt("scattering_length_Li6_a_vs_B_12_13_23.txt", skiprows = 1)
+
+    a_3D = []
+
+    if species == "1_2":
+        index = 1
+    elif species == "1_3":
+        index = 2
+    elif species == "2_3":
+        index = 3
+
+    for B in B_field:
+        a_3D.append(FB[:, index][np.isclose(FB[:, 0], B)][0])
+
+    a_3D = np.array(a_3D)
+
+    return scattering_length_2D(a_3D, freq_z, m = m)
+
+
+def ln_kF_a2D(B_field, n, freq_z, m = m_Li, species = "1_2"):
+
+    a_2D = B_to_a2D(B_field, freq_z, m = m, species = species)
+
+    return np.log(k_F(n) * a_2D)
+

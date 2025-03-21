@@ -13,38 +13,28 @@ def createImageInfoList(folders, variableNamesList, atomImgName = 'AtomsM', refI
     return a list of dictionaries, with each dictionary corresponding to one file
     dictionary: includes the variables values and the exact filepaths to atoms/reference/background images
     '''
+
     infoList = []
+
     for folder in folders:
         fl = sorted(os.listdir(folder))
         for fn in fl:
             if atomImgName in fn:
-                #extraction method relies on strings without file extension
-                if '.png' in fn:
-                    varValues = extractVariableValuesFromSingleString(fn[:-4], variableNamesList)
-                else:
-                    varValues = extractVariableValuesFromSingleString(fn, variableNamesList)
+
+                varValues = extractVariableValuesFromSingleString(fn[:-4], variableNamesList)
+
                 d = {}
+
                 for i in range(len(variableNamesList)):
                     d[variableNamesList[i]] = varValues[i]
-                d['atoms'] = folder + "\\" + fn
-                d['reference'] = folder + "\\" + fn.replace(atomImgName, refImgName)
-                if atomBgImgName != None:
-                    d['atom_background'] = folder + "\\" + fn.replace(atomImgName, atomBgImgName)
-                else:
-                    d['atom_background'] = None
 
-                if refBgImgName != None:
-                    d['ref_background'] = folder + "\\" + fn.replace(atomImgName, refBgImgName)
-                else:
-                    d['ref_background'] = None
+                d['atoms'] = os.path.join(folder, fn)
+                d['reference'] = os.path.join(folder, fn.replace(atomImgName, refImgName))
+                d['atom_background'] = os.path.join(folder, fn.replace(atomImgName, atomBgImgName))
+                d['ref_background'] = os.path.join(folder, fn.replace(atomImgName, refBgImgName))
 
-                
-                #Make sure all these files even exist; atoms image exists per construction, the other two are uncertain # should check more here##
-                if d['reference'].split('\\')[-1] in fl:
-                    if atomBgImgName == None or d['atom_background'].split('\\')[-1] in fl:
-                        if refBgImgName == None or d['ref_background'].split('\\')[-1] in fl:
-                            infoList.append(d)
-            
+                infoList.append(d)
+
     return infoList
 
 #################################################################
@@ -169,6 +159,9 @@ def makeAveragedDensityImage(filenameList, averagingOrder = 'normal'):
 
 #################################################################
 def cropImage(img, xOffset, yOffset, xSize, ySize):
+    """
+    Crop an image to a smaller size, starting at the given offset
+    """
     try:
         newImg = img[yOffset:yOffset+ySize, xOffset:xOffset+xSize]
     except:
@@ -187,7 +180,7 @@ def extractVariableValue(filename, varname):
         varval = secondhalf[:varvalend]
     return float(varval)
 
-def loadAbsorptionDensityImage(filepath, rescale = True):
+def loadAbsorptionDensityImage(filepath, rescale = False):
     data = np.asarray(Image.open(filepath), dtype = int)
     if rescale:
         data = data - 5000
@@ -315,21 +308,21 @@ def extractVariableNames(s, existingVars = []):
     return variables
 
 def extractVariableValuesFromSingleString(s, variables):
+
     values = []
 
-    for i in range(len(variables)):
-        var = variables[i]
-        splitStr = s.split(var)
-        if len(splitStr) == 1:
-            values.append('unknown')
-        else:
-            for j in range(1, len(splitStr)):
-                if splitStr[j][0] == '_' and len(splitStr[j]) > 1 and (splitStr[j][1].isnumeric() or (splitStr[j][1] == '-' and splitStr[j][2].isnumeric())):
-                    valStr = splitStr[j][1:].split('_')[0]
-                    try:
-                        values.append(float(valStr))
-                    except:
-                        values.append('unknown')
+    # remove .png at the end of file name
+    # string = s[:-4]
+
+    for var in variables:
+
+        # split off string right after variable name
+        split = s.split("_" + var + "_")[1]
+
+        # select number as first element of split
+        value = split.split("_")[0]
+        values.append(float(value))
+
     return values
 
 def extractvariablesFromNames(nameslist, variables):

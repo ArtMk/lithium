@@ -149,7 +149,7 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
 
             # peak from running average
             T4_run = np.mean(ma.array(density, mask = T4_mask), axis = 1).compressed()
-            images_prc["T4_run_peak"].append(np.max(running_average(T4_run, 7)))
+            images_prc["T4_run_peak"].append(np.max(running_average(T4_run, 5)))
 
             for key in keys:
                 images_prc[key].append(image_set[key])
