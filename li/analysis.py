@@ -82,7 +82,7 @@ def circular_mask(image_shape, center, radius):
     """
 
     Y, X = np.ogrid[:image_shape[0], :image_shape[1]]
-    dist_from_center = np.sqrt((X - center[0])**2 + (Y-center[1])**2)
+    dist_from_center = np.sqrt((X - center[1])**2 + (Y-center[0])**2)
 
     mask = dist_from_center >= radius
     return mask
@@ -372,7 +372,7 @@ def T4_fit(images):
         pos = np.arange(0, len(T4))
 
         # peak from gauss + parabola fit
-        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 1, 5], bounds=([0, 40, 0, 0, 0], [1, 60, 1000, 3, 10]))
+        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 1, 5], bounds=([0, 40, 0, 0, 0], [1, 60, 1000, 4, 10]))
 
         T4_params.append(popt)
         T4_peak.append(popt[0] + popt[3])
@@ -393,33 +393,52 @@ def T4_fit(images):
     return images_fit
 
 
-def response(images, index, index_0):
+def response(images, ref, ref_value, index, column):
     """
     Function:
         This function calculates the response from the T4 peaks extracted
         from both fitting and running average methods.
 
     Arguments:
-        images  -- {pandas dataframe} densities for all combinations of loop variables plus T4 peaks
-        index   -- {string} loop variable on y-axis
-        index_0 -- {float} value with respect to which the response is calculated
+        images    -- {pandas dataframe} densities for all combinations of loop variables plus T4 peaks
+        ref       -- {pandas dataframe} reference dataset for response calculation
+        ref_value -- {float} value with respect to which the response is calculated
+        index     -- {string} loop variable on y-axis
+        column    -- {string} loop variable on x-axis
 
     Returns:
         {pandas dataframe} additionally containing response from T4 peaks
     """
 
-    images_res = images.copy()
+    # if index is None it means that there is only one loop variable.
+    # In this case, the response is calculated for one slice with respect to the reference value.
 
-    a = np.array(images_res["T4_peak"])
-    b = np.array(images_res[images_res[index] == index_0]["T4_peak"])
-    a0  = np.tile(b, len(images_res) // len(b))
+    if index == None:
+        sorting = [column]
 
-    # a_run = np.array(images_res["T4_run_peak"])
-    # b_run = np.array(images_res[images_res[index] == index_0]["T4_run_peak"])
-    # a0_run  = np.tile(b_run, len(images_res) // len(b_run))
+        images_res = images.sort_values(by = sorting)
+
+        a = np.array(images_res["T4_run_peak"])
+        a0 = images_res["T4_run_peak"][np.isclose(images_res[column], ref_value)].values[0]
+
+
+    else:
+        sorting = [index, column]
+
+        images_res = images.sort_values(by = sorting)
+
+        a = np.array(images_res["T4_run_peak"])
+
+        if np.shape(images) != np.shape(ref):
+            print("Separate dataset for reference")
+            a0  = np.tile(ref["T4_run_peak"], len(images_res) // len(ref["T4_run_peak"]))
+        else:
+            print("Same dataset for reference")
+            mask = np.isclose(images_res[index], ref_value)
+            b = np.array(images_res[mask].groupby([column]).mean(numeric_only = False).reset_index()["T4_run_peak"])
+            a0  = np.tile(b, len(images_res) // len(b))
 
     images_res["response"] = a0 / a - np.ones(len(a))
-    # images_res["response_run"] = a0_run / a_run - np.ones(len(a_run))
 
     return images_res
 
