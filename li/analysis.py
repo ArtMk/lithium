@@ -278,23 +278,23 @@ def gauss(x, a, b, c):
     return a * np.exp(-(x - b)**2 / c) # + d
 
 
-def parab(x, e, b, f):
+def parab(x, e, b2, f):
     """
     Function:
         Parabola where negative points are masked.
 
     Arguments:
-        x -- {array-like} x coordinate
-        e -- {scalar} amplitude parameter
-        b -- {scalar} mean parameter
-        f -- {scalar} width parameter
+        x  -- {array-like} x coordinate
+        e  -- {scalar} amplitude parameter
+        b2 -- {scalar} mean parameter
+        f  -- {scalar} width parameter
 
     Returns:
         {array-like} parabola evaluated at x
     """
 
     # parab = -e * (x - b)**2 + f
-    parab = 1 - ((x - b)/f)**2
+    parab = 1 - ((x - b2)/f)**2
 
     # mask points where parabola is negative
     mask = (parab < 0)
@@ -305,7 +305,7 @@ def parab(x, e, b, f):
     return parab
 
 
-def gauss_parab(x, a, b, c, e, f):
+def gauss_parab(x, a, b, c, e, b2, f):
     """
     Function:
         Gaussian plus parabola
@@ -372,7 +372,7 @@ def T4_fit(images):
         pos = np.arange(0, len(T4))
 
         # peak from gauss + parabola fit
-        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 1, 5], bounds=([0, 40, 0, 0, 0], [1, 60, 1000, 4, 10]))
+        popt, pcov = curve_fit(gauss_parab, pos, T4, p0 = [0.5, 50, 700, 1, 50, 5], bounds=([0, 40, 0, 0, 40, 0], [1, 60, 1000, 4, 60, 10]))
 
         T4_params.append(popt)
         T4_peak.append(popt[0] + popt[3])
@@ -385,10 +385,14 @@ def T4_fit(images):
         T_err = px_to_x**2 * m_Li * omega_T4**2 / const.k * 1e9 * np.sqrt(np.diag(pcov)[2])
         temperature.append([T, T_err])
 
+        print(f"DONE {im["FB_Img"]}")
+
     images_fit["T4_params"] = T4_params
     images_fit["T4_peak"] = T4_peak
     # images_fit["T4_run_peak"] = T4_run_peak
     images_fit["temperature"] = temperature
+
+    print("CHANGE DONE")
 
     return images_fit
 
