@@ -89,7 +89,7 @@ def circular_mask(image_shape, center, radius):
     return mask
 
 
-def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, savepath, save = True, progress_disable = False):
+def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, progress_disable = False):
     """
     Function:
         This function creates a density image after reading in the paths of the raw images.
@@ -103,8 +103,6 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, sa
         w                 -- {scalar} width of the rectangular mask for region of interest
         Csat_rate         -- {scalar} saturation rate value for imaging
         illumination_time -- {scalar} imaging illumination time [s]
-        savepath          -- {string} path to save the pandas dataframe
-        save              -- {boolean} save the pandas dataframe to disk
         progress          -- {boolean} progress bar
 
     Returns:
@@ -162,16 +160,10 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, sa
     # make pandas dataframe out of dictionary
     images_prc = pd.DataFrame(images_prc)
 
-    if save:
-        if not os.path.isdir(savepath):
-            os.mkdir(savepath)
-
-        images_prc.to_pickle(savepath + "/images_prc.pkl")
-
     return images_prc
 
 
-def filter(images, threshold):
+def filter(images, threshold, savepath, save = True):
     """
     Function:
         This function filters the density images for missed shots.
@@ -182,6 +174,8 @@ def filter(images, threshold):
     Arguments:
         images    -- {pandas dataframe} densities for all combinations of loop variables
         threshold -- {scalar} threshold for filtering missed shots
+        savepath  -- {string} path to save the pandas dataframe
+        save      -- {boolean} save the pandas dataframe to disk
 
     Returns:
         {pandas dataframe} densities for all combinations of loop variables filtered for missed shots
@@ -193,6 +187,12 @@ def filter(images, threshold):
         if np.sum(im["density"].compressed()) < threshold:
             images = images.drop([i])
             # print(f"dropped {i}")
+
+    if save:
+        if not os.path.isdir(savepath):
+            os.mkdir(savepath)
+
+        images.to_pickle(savepath + "/images_fil.pkl")
 
     return images
 
