@@ -5,6 +5,7 @@ python package for the analysis of absorption images
 developed by members of the lithium project
 """
 
+import os
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
@@ -88,7 +89,7 @@ def circular_mask(image_shape, center, radius):
     return mask
 
 
-def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, progress_disable):
+def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, savepath, save = True, progress_disable = False):
     """
     Function:
         This function creates a density image after reading in the paths of the raw images.
@@ -102,6 +103,8 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
         w                 -- {scalar} width of the rectangular mask for region of interest
         Csat_rate         -- {scalar} saturation rate value for imaging
         illumination_time -- {scalar} imaging illumination time [s]
+        savepath          -- {string} path to save the pandas dataframe
+        save              -- {boolean} save the pandas dataframe to disk
         progress          -- {boolean} progress bar
 
     Returns:
@@ -159,6 +162,12 @@ def density_builder(images, keys, center, h, w, Csat_rate, illumination_time, pr
     # make pandas dataframe out of dictionary
     images_prc = pd.DataFrame(images_prc)
 
+    if save:
+        if not os.path.isdir(savepath):
+            os.mkdir(savepath)
+
+        images_prc.to_pickle(savepath + "/images_prc.pkl")
+
     return images_prc
 
 
@@ -196,7 +205,7 @@ def variance_func(images):
     return variance
 
 
-def group(images, keys, key_kill, Csat_rate, illumination_time):
+def group(images, keys, key_kill, Csat_rate, illumination_time, savepath, save = True):
     """
     Function:
         This function averages the densities for all combinations of loop variables with respect to the variable
@@ -210,6 +219,8 @@ def group(images, keys, key_kill, Csat_rate, illumination_time):
         key_kill          -- {string} loop variable to be averaged over and "killed" from the dataframe
         Csat_rate         -- {scalar} saturation rate value for imaging
         illumination_time -- {scalar} imaging illumination time [s]
+        savepath          -- {string} path to save the pandas dataframe
+        save              -- {boolean} save the grouped dataframe to disk
 
     Returns:
         {pandas dataframe} densities for all combinations of loop variables averaged over key_kill
@@ -255,6 +266,12 @@ def group(images, keys, key_kill, Csat_rate, illumination_time):
 
     images_grp["number_var"] = ((A / sigma_eff * (1 / images_grp["atoms"] + 1 / counts_sat)) ** 2 *
                                 (images_grp["atoms_var"] - gain * images_grp["atoms"] - images_grp["fringe_var"]))
+
+    if save:
+        if not os.path.isdir(savepath):
+            os.mkdir(savepath)
+
+        images_grp.to_pickle(savepath + "/images_grp.pkl")
 
     return images_grp
 

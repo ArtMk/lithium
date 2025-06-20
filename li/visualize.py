@@ -6,7 +6,9 @@ developed by members of the Lithium Project
 """
 
 import seaborn
+import numpy as np
 import matplotlib.pyplot as plt
+
 from li.diagnostic import breit_rabi
 
 
@@ -83,62 +85,47 @@ def spectrum(images, index, columns, values, title, vmin = 0, vmax = 1, cmap = "
     return
 
 
-def plot_images(images, folder_out, prefix='test', loop_var_name='Vortex_hold ', images_per_row=5, cmap='gray'):
+def unmask(masked_array):
     """
-    Load all images in `folder` whose filenames start with `prefix` and display them in rows.
-    Titles above each image will be loop_var_name and then the numbers in the suffix after `prefix` (filename without extension).
-    Images are ordered based on the integer parsed from the suffix.
+    Function:
+        This function is a wrapper for pyplot.imshow when you only want to plot the visible part of a masked array
 
+    Arguments:
+        masked_array: -- {masked numpy array} the array to plot
 
-    Args:
-        folder (str): Path to the folder containing images.
-        prefix (str): Filename prefix to filter images.
-        images_per_row (int): Number of images per row before breaking to the next row.
-        loop_var_name (str): only for the title
+    Return:
+        {np.array} the cropped array
     """
-    # Gather image file paths
-    files = [f for f in os.listdir(folder) if f.startswith(prefix)]
-    image_paths = [os.path.join(folder, f) for f in files]
 
-    # Load images and extract suffix titles and order keys
-    image_infos = []  # list of tuples: (Image, suffix, order)
-    for path in image_paths:
-        try:
-            img = Image.open(path)
-            name, _ = os.path.splitext(os.path.basename(path))
-            suffix = name[len(prefix):]
-            # Extract digits for ordering; non-digit chars are ignored
-            digits = ''.join(filter(str.isdigit, suffix))
-            order = int(digits) if digits else float('inf')
-            image_infos.append((img, suffix, order))
-        except IOError:
-            print(f"Warning: {path} is not a valid image file and will be skipped.")
+    mask = masked_array.mask
 
-    if not image_infos:
-        print("No images found with the given prefix.")
-        return
+    # find the indices of all unmasked pixels
+    ys, xs = np.where(~mask)
 
-    # Sort images by the extracted numeric order key
-    image_infos.sort(key=lambda x: x[2])
+    # compute the bounding‐box
+    y0, y1 = ys.min(), ys.max() + 1
+    x0, x1 = xs.min(), xs.max() + 1
 
-    total = len(image_infos)
-    rows = (total + images_per_row - 1) // images_per_row
+    # slice out the minimal sub‐array
+    sub = masked_array[y0:y1, x0:x1]
 
-    # Create subplots
-    fig, axes = plt.subplots(rows, images_per_row, figsize=(images_per_row * 2, rows * 2))
-    axes = axes.flatten() if total > 1 else [axes]
+    return sub
 
-    # Plot images
-    for ax, (img, title, _) in zip(axes, image_infos):
-        ax.imshow(img, cmap=cmap)
-        title
-        ax.set_title(loop_var_name + title)
-        ax.axis('off')
 
-    # Turn off any unused axes
-    for ax in axes[len(image_infos):]:
+def plot_grid(images, loop_var_name, columns, rows, cmap = "gray"):
+
+    fig, axes = plt.subplots(int(np.ceil(len(images) / columns)), columns, figsize = (columns * 2, rows * 2))
+    axes = axes.flatten()
+
+    for i, im in images.iterrows():
+        axes[i].imshow(unmask(im["density"]), cmap = cmap)
+        axes[i].set_title(f"{loop_var_name}: {im[loop_var_name]}", fontsize = 15)
+        axes[i].axis('off')
+
+    # turn off any unused axes
+    for ax in axes[len(images):]:
         ax.axis('off')
 
     plt.tight_layout()
-    plt.savefig(folder_out + '/Sequence_' + prefix, dpi=100)
+    # plt.savefig(folder_out + '/Sequence_' + prefix, dpi=100)
     plt.show()
