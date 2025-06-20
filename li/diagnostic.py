@@ -30,7 +30,7 @@ A = 0.915                        # scaling constant for a_2D and a_3D
 a_0 = const.value('Bohr radius') # Bohr radius
 
 
-def intensity(power, waist):
+def intensity(power, waist_x, waist_y):
     """
     Function:
         This function calculates the intensity of a laser beam for a given power and waist.
@@ -43,10 +43,10 @@ def intensity(power, waist):
         {scalar} intensity [W m^-2]
     """
 
-    return 2 * power / (const.pi * waist**2)
+    return 2 * power / (const.pi * waist_x * waist_y)
 
 
-def U_dip(wavelength, power, waist, from_trap_freq, trap_freq = 0):
+def U_dip(wavelength, power, waist_x, waist_y, from_trap_freq, trap_freq = 0):
     """
     Function:
         This function calculates the dipole potential of a laser beam for given beam characteristics or a known trap frequency.
@@ -72,13 +72,13 @@ def U_dip(wavelength, power, waist, from_trap_freq, trap_freq = 0):
     D2_detuning = np.abs(f_laser - f_res)
 
     if from_trap_freq:
-        return m_Li * waist**2 * const.pi**2 * trap_freq**2 / const.k
+        return m_Li * waist_x * waist_y * const.pi**2 * trap_freq**2 / const.k
 
     else:
-        return 3 * const.pi * const.c**2 / (2 * f_res**3) * Gamma / D2_detuning * intensity(power, waist)
+        return 3 * const.pi * const.c**2 / (2 * f_res**3) * Gamma / D2_detuning * intensity(power, waist_x, waist_y)
 
 
-def trap_frequency(wavelength, power, waist, from_trap_freq = False):
+def trap_frequency(wavelength, power, waist_x, waist_y, waisttt, from_trap_freq = False):
     """
     Function:
         This function calculates the trap frequency of a dipole trap.
@@ -95,7 +95,7 @@ def trap_frequency(wavelength, power, waist, from_trap_freq = False):
         {scalar} trap frequency [Hz]
     """
 
-    return np.sqrt(4 * U_dip(wavelength, power, waist, from_trap_freq) / (m_Li * waist**2)) / (2 * const.pi)
+    return np.sqrt(4 * U_dip(wavelength, power, waist_x, waist_y, from_trap_freq) / (m_Li * waisttt**2)) / (2 * const.pi)
 
 
 def breit_rabi(B, state): # B in Gaus, return in MHz
@@ -236,6 +236,14 @@ def E_F(n):
     return const.hbar**2 * k_F(n)**2 / (2 * m_Li)
 
 
+
+def E_F_from_trap(N, trap_freq_1, trap_freq_2, trap_freq_3):
+
+    trap_freq_mean = (trap_freq_1 * trap_freq_2 * trap_freq_3)**(1/3)
+
+    return const.hbar * trap_freq_mean * (6 * N)**(1/3)
+
+
 def T_F(n):
     """
     Function:
@@ -251,7 +259,7 @@ def T_F(n):
     return E_F(n) / const.k
 
 
-def B_to_a2D(B_field, freq_z, m = m_Li, species = "1_2"):
+def B_to_a2D(B_field, freq_z, m = m_Li, species = "1_2", g_tilde = False):
 
     FB = np.loadtxt("scattering_length_Li6_a_vs_B_12_13_23.txt", skiprows = 1)
 
@@ -267,9 +275,33 @@ def B_to_a2D(B_field, freq_z, m = m_Li, species = "1_2"):
     for B in B_field:
         a_3D.append(FB[:, index][np.isclose(FB[:, 0], B)][0])
 
-    a_3D = np.array(a_3D)
+    a_3D = np.array(a_3D) * a_0
+
+    if g_tilde:
+        return 0.6 * a_3D
 
     return scattering_length_2D(a_3D, freq_z, m = m)
+
+
+def B_to_a3D(B_field, species = "1_2"):
+
+    FB = np.loadtxt("scattering_length_Li6_a_vs_B_12_13_23.txt", skiprows = 1)
+
+    a_3D = []
+
+    if species == "1_2":
+        index = 1
+    elif species == "1_3":
+        index = 2
+    elif species == "2_3":
+        index = 3
+
+    for B in B_field:
+        a_3D.append(FB[:, index][np.isclose(FB[:, 0], B)][0])
+
+    a_3D = np.array(a_3D) * a_0
+
+    return a_3D
 
 
 def ln_kF_a2D(B_field, n, freq_z, m = m_Li, species = "1_2"):
@@ -277,4 +309,17 @@ def ln_kF_a2D(B_field, n, freq_z, m = m_Li, species = "1_2"):
     a_2D = B_to_a2D(B_field, freq_z, m = m, species = species)
 
     return np.log(k_F(n) * a_2D)
+
+
+def g_tilde(B_field, freq_z):
+    """
+    Function:
+        This function calculates the dimensionless interaction strength in the 2D BEC limit.
+
+    Arguments:
+        B_field -- {scalar} magnetic field [G]
+        freq_z  -- {scalar} trap frequency [Hz]
+    """
+
+    return np.sqrt(8 * const.pi) * B_to_a2D(B_field, freq_z, g_tilde = True) / harmonic_osc_length(freq_z, m = 2 * m_Li)
 
